@@ -3,6 +3,7 @@
 use crate::{
     args::ArgValues,
     bytecode::{CallResult, VM},
+    defer_drop,
     exception_private::{ExcType, RunResult},
     heap::{Heap, HeapGuard, HeapId},
     intern::{Interns, StringId},
@@ -132,30 +133,23 @@ impl Module {
         attr: &EitherStr,
         args: ArgValues,
     ) -> RunResult<CallResult> {
-        let heap = &mut *vm.heap;
-        let interns = vm.interns;
-        let mut args_guard = HeapGuard::new(args, heap);
-
+        let mut args_guard = HeapGuard::new(args, vm);
+        let vm = args_guard.heap();
         let attr_key = match attr {
             EitherStr::Interned(id) => Value::InternString(*id),
             EitherStr::Heap(s) => {
-                // Module attributes are always interned, so owned strings won't match
-                return Err(ExcType::attribute_error_module(interns.get_str(self.name), s));
+                return Err(ExcType::attribute_error_module(vm.interns.get_str(self.name), s));
             }
         };
 
-        match self.get_attr(&attr_key, args_guard.heap(), interns) {
-            Some(Value::ModuleFunction(mf)) => {
-                let (args, heap) = args_guard.into_parts();
-                mf.call(heap, args, interns)
-            }
-            Some(func) => {
-                // Found attribute but it's not callable
-                func.drop_with_heap(args_guard.heap());
-                Err(ExcType::type_error("module attribute is not callable"))
+        match self.get_attr(&attr_key, vm.heap, vm.interns) {
+            Some(value) => {
+                let (args, vm) = args_guard.into_parts();
+                defer_drop!(value, vm);
+                vm.call_function(value, args)
             }
             None => Err(ExcType::attribute_error_module(
-                interns.get_str(self.name),
+                vm.interns.get_str(self.name),
                 attr.as_str(vm.interns),
             )),
         }
