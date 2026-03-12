@@ -229,6 +229,22 @@ class MontyRepl:
         Execute one incremental snippet and return its output.
         """
 
+    def feed_start(
+        self,
+        code: str,
+        *,
+        external_functions: list[str] | None = None,
+        type_check_stubs: str | None = None,
+        print_callback: Callable[[Literal['stdout'], str], None] | None = None,
+    ) -> FunctionSnapshot | NameLookupSnapshot | FutureSnapshot | MontyComplete:
+        """
+        Execute one incremental snippet using suspendable execution.
+
+        Returns the same public snapshot types as `Monty.start()`, while preserving
+        the live REPL session so later `feed()` or `feed_start()` calls continue from
+        the updated state after the snapshot chain completes.
+        """
+
     def dump(self) -> bytes:
         """Serialize the REPL session to bytes."""
 

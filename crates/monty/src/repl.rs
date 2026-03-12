@@ -112,8 +112,8 @@ impl ReplExecutor {
 
     /// Builds the runtime namespace stack for module execution.
     ///
-    /// External function bindings are inserted first, then input values, then
-    /// remaining slots are initialized to `Undefined`.
+    /// Input values fill the first declared slots and all remaining slots are
+    /// initialized to `Undefined`.
     fn prepare_namespaces(
         &self,
         inputs: Vec<MontyObject>,
